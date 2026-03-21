@@ -10,9 +10,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -139,6 +139,6 @@ public class AuthService {
     }
 
     private String generarCodigo() {
-        return String.format("%06d", new Random().nextInt(999999));
+        return String.format("%06d", new SecureRandom().nextInt(999999));
     }
 }
