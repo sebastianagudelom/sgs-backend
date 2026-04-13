@@ -36,9 +36,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Endpoints públicos de autenticación
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Archivos estáticos de imágenes subidas
+                        .requestMatchers("/uploads/**").permitAll()
                         // Lectura de productos y categorías es pública
                         .requestMatchers(HttpMethod.GET, "/api/productos/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categorias/**").permitAll()
+                        // Subida de imágenes solo para ADMIN
+                        .requestMatchers(HttpMethod.POST, "/api/imagenes/**").hasRole("ADMIN")
                         // Escritura de productos y categorías solo para ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/productos/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/productos/**").hasRole("ADMIN")
@@ -46,6 +50,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/categorias/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/categorias/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/categorias/**").hasRole("ADMIN")
+                        // Pedidos: crear y ver mis pedidos requiere autenticación
+                        .requestMatchers(HttpMethod.POST, "/api/pedidos").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/pedidos/mis-pedidos").authenticated()
+                        // Pedidos: listar todos y cambiar estado solo ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/pedidos").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/pedidos/*/estado").hasRole("ADMIN")
+                        // Ver detalle de pedido individual requiere autenticación
+                        .requestMatchers(HttpMethod.GET, "/api/pedidos/*").authenticated()
                         // Todo lo demás requiere autenticación
                         .anyRequest().authenticated()
                 )
