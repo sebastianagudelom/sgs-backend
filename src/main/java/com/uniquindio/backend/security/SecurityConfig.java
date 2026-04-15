@@ -41,7 +41,8 @@ public class SecurityConfig {
                         // Lectura de productos y categorías es pública
                         .requestMatchers(HttpMethod.GET, "/api/productos/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categorias/**").permitAll()
-                        // Subida de imágenes solo para ADMIN
+                        // Lectura de imágenes es pública, subida solo para ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/imagenes/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/imagenes/**").hasRole("ADMIN")
                         // Escritura de productos y categorías solo para ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/productos/**").hasRole("ADMIN")

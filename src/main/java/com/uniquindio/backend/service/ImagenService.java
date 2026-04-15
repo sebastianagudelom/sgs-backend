@@ -1,18 +1,16 @@
 package com.uniquindio.backend.service;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.uniquindio.backend.model.Imagen;
+import com.uniquindio.backend.repository.ImagenRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
-import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class ImagenService {
 
     private static final List<String> TIPOS_PERMITIDOS = List.of(
@@ -21,11 +19,10 @@ public class ImagenService {
 
     private static final long MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
-    @Value("${app.upload-dir:uploads}")
-    private String uploadDir;
+    private final ImagenRepository imagenRepository;
 
     /**
-     * Guarda un archivo de imagen y retorna la URL relativa para acceder a ella.
+     * Guarda un archivo de imagen en la base de datos y retorna la URL relativa para acceder a ella.
      */
     public String guardarImagen(MultipartFile archivo) throws IOException {
         if (archivo == null || archivo.isEmpty()) {
@@ -42,21 +39,23 @@ public class ImagenService {
         }
 
         String originalFilename = archivo.getOriginalFilename();
-        String extension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        if (originalFilename == null || originalFilename.isBlank()) {
+            originalFilename = "imagen";
         }
 
-        String nombreArchivo = UUID.randomUUID() + extension;
+        Imagen imagen = Imagen.builder()
+                .nombre(originalFilename)
+                .tipo(contentType)
+                .datos(archivo.getBytes())
+                .build();
 
-        Path directorio = Paths.get(uploadDir);
-        if (!Files.exists(directorio)) {
-            Files.createDirectories(directorio);
-        }
+        Imagen guardada = imagenRepository.save(imagen);
 
-        Path rutaArchivo = directorio.resolve(nombreArchivo);
-        Files.copy(archivo.getInputStream(), rutaArchivo, StandardCopyOption.REPLACE_EXISTING);
+        return "/api/imagenes/" + guardada.getId();
+    }
 
-        return "/uploads/" + nombreArchivo;
+    public Imagen obtenerPorId(Long id) {
+        return imagenRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Imagen no encontrada"));
     }
 }
