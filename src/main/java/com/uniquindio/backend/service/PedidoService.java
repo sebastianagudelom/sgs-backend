@@ -140,6 +140,53 @@ public class PedidoService {
         return toResponse(pedidoRepository.save(pedido));
     }
 
+    /**
+     * Genera la factura de un pedido pagado.
+     */
+    public FacturaResponse obtenerFactura(String emailUsuario, Long pedidoId) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
+
+        if (!pedido.getUsuario().getEmail().equals(emailUsuario)) {
+            throw new RuntimeException("No tienes permiso para ver esta factura");
+        }
+
+        if (pedido.getEstado() != EstadoPedido.PAGADO
+                && pedido.getEstado() != EstadoPedido.CONFIRMADO
+                && pedido.getEstado() != EstadoPedido.ENVIADO
+                && pedido.getEstado() != EstadoPedido.ENTREGADO) {
+            throw new RuntimeException("La factura solo está disponible para pedidos pagados");
+        }
+
+        List<DetallePedidoResponse> detallesDto = pedido.getDetalles() != null
+                ? pedido.getDetalles().stream().map(d -> new DetallePedidoResponse(
+                d.getId(),
+                d.getProducto().getId(),
+                d.getProducto().getNombre(),
+                d.getProducto().getImagenUrl(),
+                d.getCantidad(),
+                d.getPrecioUnitario(),
+                d.getSubtotal()
+        )).toList()
+                : List.of();
+
+        Usuario usuario = pedido.getUsuario();
+        return new FacturaResponse(
+                pedido.getId(),
+                usuario.getNombre() + " " + usuario.getApellido(),
+                usuario.getEmail(),
+                usuario.getCedula(),
+                usuario.getTelefono(),
+                pedido.getDireccionEnvio(),
+                pedido.getEstado().name(),
+                pedido.getMercadoPagoPaymentId(),
+                pedido.getTotal(),
+                detallesDto,
+                pedido.getFechaActualizacion(),
+                pedido.getFechaCreacion()
+        );
+    }
+
     private PedidoResponse toResponse(Pedido pedido) {
         List<DetallePedidoResponse> detallesDto = pedido.getDetalles() != null
                 ? pedido.getDetalles().stream().map(d -> new DetallePedidoResponse(

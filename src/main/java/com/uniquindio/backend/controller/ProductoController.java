@@ -53,6 +53,11 @@ public class ProductoController {
         return ResponseEntity.ok(productoService.actualizar(id, request));
     }
 
+    @PatchMapping("/{id}/toggle-activo")
+    public ResponseEntity<ProductoResponse> toggleActivo(@PathVariable Long id) {
+        return ResponseEntity.ok(productoService.toggleActivo(id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         productoService.eliminar(id);

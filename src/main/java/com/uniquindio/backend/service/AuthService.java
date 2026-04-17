@@ -34,6 +34,10 @@ public class AuthService {
             throw new RuntimeException("Ya existe una cuenta registrada con este email");
         }
 
+        if (usuarioRepository.existsByCedula(request.cedula())) {
+            throw new RuntimeException("Ya existe una cuenta registrada con esta cédula");
+        }
+
         String codigo = generarCodigo();
 
         Usuario usuario = Usuario.builder()
@@ -41,6 +45,8 @@ public class AuthService {
                 .apellido(request.apellido())
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
+                .cedula(request.cedula())
+                .telefono(request.telefono())
                 .rol(Rol.CLIENTE)
                 .activo(false)
                 .codigoVerificacion(codigo)

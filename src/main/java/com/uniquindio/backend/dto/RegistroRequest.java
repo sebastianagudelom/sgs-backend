@@ -22,6 +22,14 @@ public record RegistroRequest(
                 regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).*$",
                 message = "La contraseña debe contener al menos una mayúscula, una minúscula y un número"
         )
-        String password
+        String password,
+
+        @NotBlank(message = "La cédula es obligatoria")
+        @Pattern(regexp = "^[0-9]{6,20}$", message = "La cédula debe tener entre 6 y 20 dígitos")
+        String cedula,
+
+        @NotBlank(message = "El teléfono es obligatorio")
+        @Pattern(regexp = "^[0-9]{7,15}$", message = "El teléfono debe tener entre 7 y 15 dígitos")
+        String telefono
 ) {
 }

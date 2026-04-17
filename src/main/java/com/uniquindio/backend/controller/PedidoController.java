@@ -1,5 +1,6 @@
 package com.uniquindio.backend.controller;
 
+import com.uniquindio.backend.dto.FacturaResponse;
 import com.uniquindio.backend.dto.PedidoRequest;
 import com.uniquindio.backend.dto.PedidoResponse;
 import com.uniquindio.backend.service.PedidoService;
@@ -62,5 +63,16 @@ public class PedidoController {
             @PathVariable Long id,
             @RequestParam String estado) {
         return ResponseEntity.ok(pedidoService.actualizarEstado(id, estado));
+    }
+
+    /**
+     * Cliente obtiene la factura de un pedido pagado.
+     */
+    @GetMapping("/{id}/factura")
+    public ResponseEntity<FacturaResponse> obtenerFactura(
+            @PathVariable Long id,
+            Authentication authentication) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(pedidoService.obtenerFactura(email, id));
     }
 }

@@ -11,7 +11,8 @@ public record PedidoRequest(
         @Valid
         List<ItemCarritoRequest> items,
 
-        @Size(max = 500, message = "La dirección no puede superar los 500 caracteres")
+        @NotBlank(message = "La dirección de envío es obligatoria")
+        @Size(min = 10, max = 500, message = "La dirección debe tener entre 10 y 500 caracteres")
         String direccionEnvio
 ) {
 }

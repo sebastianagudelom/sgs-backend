@@ -13,4 +13,6 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     List<Pedido> findByEstadoOrderByFechaCreacionDesc(EstadoPedido estado);
 
     List<Pedido> findAllByOrderByFechaCreacionDesc();
+
+    long countByUsuarioId(Long usuarioId);
 }

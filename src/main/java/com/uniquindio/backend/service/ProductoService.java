@@ -5,6 +5,7 @@ import com.uniquindio.backend.dto.ProductoResponse;
 import com.uniquindio.backend.model.Categoria;
 import com.uniquindio.backend.model.Producto;
 import com.uniquindio.backend.repository.CategoriaRepository;
+import com.uniquindio.backend.repository.DetallePedidoRepository;
 import com.uniquindio.backend.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ public class ProductoService {
 
     private final ProductoRepository productoRepository;
     private final CategoriaRepository categoriaRepository;
+    private final DetallePedidoRepository detallePedidoRepository;
 
     public List<ProductoResponse> listarTodos() {
         return productoRepository.findAll().stream()
@@ -86,11 +88,23 @@ public class ProductoService {
     }
 
     @Transactional
+    public ProductoResponse toggleActivo(Long id) {
+        Producto producto = productoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+        producto.setActivo(!producto.isActivo());
+        return toResponse(productoRepository.save(producto));
+    }
+
+    @Transactional
     public void eliminar(Long id) {
         Producto producto = productoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
-        producto.setActivo(false);
-        productoRepository.save(producto);
+
+        if (detallePedidoRepository.existsByProductoId(id)) {
+            throw new RuntimeException("No se puede eliminar el producto porque tiene pedidos asociados. Puedes desactivarlo en su lugar.");
+        }
+
+        productoRepository.delete(producto);
     }
 
     private ProductoResponse toResponse(Producto producto) {

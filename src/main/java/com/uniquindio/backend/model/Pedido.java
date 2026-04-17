@@ -33,6 +33,9 @@ public class Pedido {
     @Column(length = 500)
     private String direccionEnvio;
 
+    @Column(unique = true)
+    private String mercadoPagoPaymentId;
+
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
