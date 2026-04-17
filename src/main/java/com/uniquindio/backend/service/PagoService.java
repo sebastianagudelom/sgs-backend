@@ -1,5 +1,6 @@
 package com.uniquindio.backend.service;
 
+import com.mercadopago.client.common.IdentificationRequest;
 import com.mercadopago.client.payment.PaymentClient;
 import com.mercadopago.client.preference.*;
 import com.mercadopago.exceptions.MPApiException;
@@ -30,6 +31,9 @@ public class PagoService {
 
     @Value("${mercadopago.notification-url}")
     private String notificationUrl;
+
+    @Value("${app.frontend-url:http://localhost:4200}")
+    private String frontendUrl;
 
     /**
      * Crea el pedido en BD con estado PENDIENTE y genera la preferencia de Mercado Pago.
@@ -104,19 +108,32 @@ public class PagoService {
         // Crear preferencia de Mercado Pago
         try {
             PreferenceBackUrlsRequest backUrls = PreferenceBackUrlsRequest.builder()
-                    .success("http://localhost:4200/mis-pedidos")
-                    .failure("http://localhost:4200/carrito")
-                    .pending("http://localhost:4200/mis-pedidos")
+                    .success(frontendUrl + "/mis-pedidos")
+                    .failure(frontendUrl + "/carrito")
+                    .pending(frontendUrl + "/mis-pedidos")
                     .build();
 
             PreferencePayerRequest payer = PreferencePayerRequest.builder()
                     .email(usuario.getEmail())
+                    .name(usuario.getNombre())
+                    .surname(usuario.getApellido())
+                    .identification(IdentificationRequest.builder()
+                            .type("CC")
+                            .number(usuario.getCedula())
+                            .build())
+                    .build();
+
+            PreferencePaymentMethodsRequest paymentMethods = PreferencePaymentMethodsRequest.builder()
+                    .excludedPaymentTypes(List.of())
+                    .excludedPaymentMethods(List.of())
+                    .installments(1)
                     .build();
 
             PreferenceRequest preferenceRequest = PreferenceRequest.builder()
                     .items(mpItems)
                     .payer(payer)
                     .backUrls(backUrls)
+                    .paymentMethods(paymentMethods)
                     .externalReference(String.valueOf(pedido.getId()))
                     .notificationUrl(notificationUrl)
                     .build();
