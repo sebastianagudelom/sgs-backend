@@ -28,6 +28,7 @@ public class PagoService {
     private final PedidoRepository pedidoRepository;
     private final ProductoRepository productoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final InventarioService inventarioService;
 
     @Value("${mercadopago.notification-url}")
     private String notificationUrl;
@@ -78,6 +79,7 @@ public class PagoService {
             // Descontar stock
             producto.setStock(producto.getStock() - item.cantidad());
             productoRepository.save(producto);
+            inventarioService.sincronizarProducto(producto);
 
             // Item para preferencia de MP
             mpItems.add(PreferenceItemRequest.builder()
@@ -225,6 +227,7 @@ public class PagoService {
             Producto producto = detalle.getProducto();
             producto.setStock(producto.getStock() + detalle.getCantidad());
             productoRepository.save(producto);
+            inventarioService.sincronizarProducto(producto);
         }
     }
 }

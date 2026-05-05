@@ -20,6 +20,9 @@ public record ProductoRequest(
         @Min(value = 0, message = "El stock no puede ser negativo")
         Integer stock,
 
+        @Min(value = 1, message = "El umbral de stock debe ser mayor a 0")
+        Integer stockMinimo,
+
         @Size(max = 500)
         String imagenUrl,
 

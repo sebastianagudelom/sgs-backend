@@ -30,6 +30,10 @@ public class Producto {
     @Column(nullable = false)
     private Integer stock;
 
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "int default 5")
+    private Integer stockMinimo = 5;
+
     @Column(length = 500)
     private String imagenUrl;
 
@@ -49,10 +53,16 @@ public class Producto {
     protected void onCreate() {
         fechaCreacion = LocalDateTime.now();
         activo = true;
+        if (stockMinimo == null) {
+            stockMinimo = 5;
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
         fechaActualizacion = LocalDateTime.now();
+        if (stockMinimo == null) {
+            stockMinimo = 5;
+        }
     }
 }

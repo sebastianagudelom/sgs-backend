@@ -18,6 +18,7 @@ public class PedidoService {
     private final PedidoRepository pedidoRepository;
     private final ProductoRepository productoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final InventarioService inventarioService;
 
     /**
      * Crea un pedido a partir del carrito del cliente.
@@ -62,6 +63,7 @@ public class PedidoService {
             // Descontar stock
             producto.setStock(producto.getStock() - item.cantidad());
             productoRepository.save(producto);
+            inventarioService.sincronizarProducto(producto);
         }
 
         Pedido pedido = Pedido.builder()
@@ -133,6 +135,7 @@ public class PedidoService {
                 Producto producto = detalle.getProducto();
                 producto.setStock(producto.getStock() + detalle.getCantidad());
                 productoRepository.save(producto);
+                inventarioService.sincronizarProducto(producto);
             }
         }
 

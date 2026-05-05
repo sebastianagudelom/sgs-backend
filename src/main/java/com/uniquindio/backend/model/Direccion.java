@@ -3,6 +3,8 @@ package com.uniquindio.backend.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "direcciones")
 @Data
@@ -20,6 +22,12 @@ public class Direccion {
 
     @Column(nullable = false, length = 500)
     private String direccion;
+
+    @Column(precision = 10, scale = 7)
+    private BigDecimal latitud;
+
+    @Column(precision = 10, scale = 7)
+    private BigDecimal longitud;
 
     @Column(nullable = false)
     private boolean predeterminada;
