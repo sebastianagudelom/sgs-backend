@@ -1,6 +1,6 @@
 package com.uniquindio.backend.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -11,10 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
+@RequiredArgsConstructor
 public class CorsConfig {
 
-    @Value("${cors.allowed-origins:}")
-    private String extraOrigins;
+    private final CorsProperties corsProperties;
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -23,9 +23,11 @@ public class CorsConfig {
                 "http://localhost:4200",
                 "https://localhost:4200"
         ));
-        if (extraOrigins != null && !extraOrigins.isBlank()) {
-            for (String origin : extraOrigins.split(",")) {
-                origins.add(origin.trim());
+        if (corsProperties.getAllowedOrigins() != null) {
+            for (String origin : corsProperties.getAllowedOrigins()) {
+                if (origin != null && !origin.isBlank()) {
+                    origins.add(origin.trim());
+                }
             }
         }
         config.setAllowedOrigins(origins);

@@ -7,12 +7,13 @@ import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
 import com.mercadopago.resources.payment.Payment;
 import com.mercadopago.resources.preference.Preference;
+import com.uniquindio.backend.config.AppProperties;
+import com.uniquindio.backend.config.MercadoPagoProperties;
 import com.uniquindio.backend.dto.*;
 import com.uniquindio.backend.model.*;
 import com.uniquindio.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,12 +30,8 @@ public class PagoService {
     private final ProductoRepository productoRepository;
     private final UsuarioRepository usuarioRepository;
     private final InventarioService inventarioService;
-
-    @Value("${mercadopago.notification-url}")
-    private String notificationUrl;
-
-    @Value("${app.frontend-url:http://localhost:4200}")
-    private String frontendUrl;
+    private final MercadoPagoProperties mercadoPagoProperties;
+    private final AppProperties appProperties;
 
     /**
      * Crea el pedido en BD con estado PENDIENTE y genera la preferencia de Mercado Pago.
@@ -110,9 +107,9 @@ public class PagoService {
         // Crear preferencia de Mercado Pago
         try {
             PreferenceBackUrlsRequest backUrls = PreferenceBackUrlsRequest.builder()
-                    .success(frontendUrl + "/mis-pedidos")
-                    .failure(frontendUrl + "/carrito")
-                    .pending(frontendUrl + "/mis-pedidos")
+                    .success(appProperties.getFrontendUrl() + "/mis-pedidos")
+                    .failure(appProperties.getFrontendUrl() + "/carrito")
+                    .pending(appProperties.getFrontendUrl() + "/mis-pedidos")
                     .build();
 
             PreferencePayerRequest payer = PreferencePayerRequest.builder()
@@ -137,7 +134,7 @@ public class PagoService {
                     .backUrls(backUrls)
                     .paymentMethods(paymentMethods)
                     .externalReference(String.valueOf(pedido.getId()))
-                    .notificationUrl(notificationUrl)
+                    .notificationUrl(mercadoPagoProperties.getNotificationUrl())
                     .build();
 
             PreferenceClient client = new PreferenceClient();

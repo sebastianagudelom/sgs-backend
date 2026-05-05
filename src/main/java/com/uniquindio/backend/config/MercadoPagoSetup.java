@@ -2,17 +2,17 @@ package com.uniquindio.backend.config;
 
 import com.mercadopago.MercadoPagoConfig;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@RequiredArgsConstructor
 public class MercadoPagoSetup {
 
-    @Value("${mercadopago.access-token}")
-    private String accessToken;
+    private final MercadoPagoProperties mercadoPagoProperties;
 
     @PostConstruct
     public void init() {
-        MercadoPagoConfig.setAccessToken(accessToken);
+        MercadoPagoConfig.setAccessToken(mercadoPagoProperties.getAccessToken());
     }
 }

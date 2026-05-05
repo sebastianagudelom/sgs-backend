@@ -16,12 +16,14 @@ public class CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
 
+    @Transactional(readOnly = true)
     public List<CategoriaResponse> listarTodas() {
         return categoriaRepository.findAll().stream()
                 .map(this::toResponse)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public CategoriaResponse obtenerPorId(Long id) {
         Categoria categoria = categoriaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));

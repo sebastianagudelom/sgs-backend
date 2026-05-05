@@ -22,30 +22,35 @@ public class ProductoService {
     private final DetallePedidoRepository detallePedidoRepository;
     private final InventarioService inventarioService;
 
+    @Transactional(readOnly = true)
     public List<ProductoResponse> listarTodos() {
         return productoRepository.findAll().stream()
                 .map(this::toResponse)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<ProductoResponse> listarActivos() {
         return productoRepository.findByActivoTrue().stream()
                 .map(this::toResponse)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public ProductoResponse obtenerPorId(Long id) {
         Producto producto = productoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
         return toResponse(producto);
     }
 
+    @Transactional(readOnly = true)
     public List<ProductoResponse> buscarPorNombre(String nombre) {
         return productoRepository.findByNombreContainingIgnoreCase(nombre).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<ProductoResponse> listarPorCategoria(Long categoriaId) {
         return productoRepository.findByCategoriaId(categoriaId).stream()
                 .map(this::toResponse)
