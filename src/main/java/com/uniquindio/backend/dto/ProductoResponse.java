@@ -9,6 +9,7 @@ public record ProductoResponse(
         String descripcion,
         BigDecimal precio,
         Integer stock,
+        Integer stockMinimo,
         String imagenUrl,
         boolean activo,
         Long categoriaId,

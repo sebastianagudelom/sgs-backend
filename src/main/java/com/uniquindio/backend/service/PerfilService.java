@@ -59,6 +59,8 @@ public class PerfilService {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
+        validarCoordenadas(request);
+
         // Si es predeterminada, quitar predeterminada de las demás
         if (request.predeterminada()) {
             quitarPredeterminadas(usuario.getId());
@@ -71,6 +73,8 @@ public class PerfilService {
         Direccion direccion = Direccion.builder()
                 .nombre(request.nombre())
                 .direccion(request.direccion())
+                .latitud(request.latitud())
+                .longitud(request.longitud())
                 .predeterminada(esPredeterminada)
                 .usuario(usuario)
                 .build();
@@ -90,12 +94,16 @@ public class PerfilService {
             throw new RuntimeException("No tienes permiso para modificar esta dirección");
         }
 
+        validarCoordenadas(request);
+
         if (request.predeterminada()) {
             quitarPredeterminadas(usuario.getId());
         }
 
         direccion.setNombre(request.nombre());
         direccion.setDireccion(request.direccion());
+        direccion.setLatitud(request.latitud());
+        direccion.setLongitud(request.longitud());
         direccion.setPredeterminada(request.predeterminada());
 
         return toDireccionResponse(direccionRepository.save(direccion));
@@ -151,6 +159,12 @@ public class PerfilService {
                 });
     }
 
+    private void validarCoordenadas(DireccionRequest request) {
+        if ((request.latitud() == null) != (request.longitud() == null)) {
+            throw new RuntimeException("Debes enviar latitud y longitud juntas");
+        }
+    }
+
     private PerfilResponse toPerfilResponse(Usuario usuario) {
         List<DireccionResponse> dirs = direccionRepository
                 .findByUsuarioIdOrderByPredeterminadaDesc(usuario.getId())
@@ -168,6 +182,13 @@ public class PerfilService {
     }
 
     private DireccionResponse toDireccionResponse(Direccion d) {
-        return new DireccionResponse(d.getId(), d.getNombre(), d.getDireccion(), d.isPredeterminada());
+        return new DireccionResponse(
+                d.getId(),
+                d.getNombre(),
+                d.getDireccion(),
+                d.getLatitud(),
+                d.getLongitud(),
+                d.isPredeterminada()
+        );
     }
 }

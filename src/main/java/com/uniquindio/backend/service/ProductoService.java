@@ -20,6 +20,7 @@ public class ProductoService {
     private final ProductoRepository productoRepository;
     private final CategoriaRepository categoriaRepository;
     private final DetallePedidoRepository detallePedidoRepository;
+    private final InventarioService inventarioService;
 
     public List<ProductoResponse> listarTodos() {
         return productoRepository.findAll().stream()
@@ -61,12 +62,15 @@ public class ProductoService {
                 .descripcion(request.descripcion())
                 .precio(request.precio())
                 .stock(request.stock())
+                .stockMinimo(normalizarStockMinimo(request.stockMinimo()))
                 .imagenUrl(request.imagenUrl())
                 .activo(true)
                 .categoria(categoria)
                 .build();
 
-        return toResponse(productoRepository.save(producto));
+        producto = productoRepository.save(producto);
+        inventarioService.sincronizarProducto(producto);
+        return toResponse(producto);
     }
 
     @Transactional
@@ -81,10 +85,13 @@ public class ProductoService {
         producto.setDescripcion(request.descripcion());
         producto.setPrecio(request.precio());
         producto.setStock(request.stock());
+        producto.setStockMinimo(normalizarStockMinimo(request.stockMinimo()));
         producto.setImagenUrl(request.imagenUrl());
         producto.setCategoria(categoria);
 
-        return toResponse(productoRepository.save(producto));
+        producto = productoRepository.save(producto);
+        inventarioService.sincronizarProducto(producto);
+        return toResponse(producto);
     }
 
     @Transactional
@@ -92,7 +99,9 @@ public class ProductoService {
         Producto producto = productoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
         producto.setActivo(!producto.isActivo());
-        return toResponse(productoRepository.save(producto));
+        producto = productoRepository.save(producto);
+        inventarioService.sincronizarProducto(producto);
+        return toResponse(producto);
     }
 
     @Transactional
@@ -114,11 +123,16 @@ public class ProductoService {
                 producto.getDescripcion(),
                 producto.getPrecio(),
                 producto.getStock(),
+                producto.getStockMinimo() != null ? producto.getStockMinimo() : 5,
                 producto.getImagenUrl(),
                 producto.isActivo(),
                 producto.getCategoria().getId(),
                 producto.getCategoria().getNombre(),
                 producto.getFechaCreacion()
         );
+    }
+
+    private int normalizarStockMinimo(Integer stockMinimo) {
+        return stockMinimo != null && stockMinimo > 0 ? stockMinimo : 5;
     }
 }
