@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -183,11 +184,12 @@ public class PagoService {
             switch (status) {
                 case "approved" -> {
                     pedido.setEstado(EstadoPedido.PAGADO);
+                    pedido.setFechaUltimoCambioEstado(LocalDateTime.now());
                     log.info("Pedido {} marcado como PAGADO", pedidoId);
                 }
                 case "rejected" -> {
                     pedido.setEstado(EstadoPedido.RECHAZADO);
-                    // Devolver stock
+                    pedido.setFechaUltimoCambioEstado(LocalDateTime.now());
                     devolverStock(pedido);
                     log.info("Pedido {} marcado como RECHAZADO, stock devuelto", pedidoId);
                 }

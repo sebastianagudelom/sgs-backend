@@ -46,9 +46,12 @@ public class Pedido {
 
     private LocalDateTime fechaActualizacion;
 
+    private LocalDateTime fechaUltimoCambioEstado;
+
     @PrePersist
     protected void onCreate() {
         fechaCreacion = LocalDateTime.now();
+        fechaUltimoCambioEstado = LocalDateTime.now();
         if (estado == null) {
             estado = EstadoPedido.PENDIENTE;
         }

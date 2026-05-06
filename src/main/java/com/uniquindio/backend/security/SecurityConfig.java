@@ -34,6 +34,9 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Actuator: el puerto 8080 no está expuesto por nginx, solo Docker puede llegar
+                        .requestMatchers("/actuator/prometheus", "/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
                         // Endpoints públicos de autenticación
                         .requestMatchers("/api/auth/**").permitAll()
                         // Archivos estáticos de imágenes subidas

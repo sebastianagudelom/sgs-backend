@@ -66,6 +66,17 @@ public class PedidoController {
     }
 
     /**
+     * Cliente cancela su propio pedido (solo si está PENDIENTE).
+     */
+    @PostMapping("/{id}/cancelar")
+    public ResponseEntity<PedidoResponse> cancelarPedido(
+            @PathVariable Long id,
+            Authentication authentication) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(pedidoService.cancelarPedidoUsuario(email, id));
+    }
+
+    /**
      * Cliente obtiene la factura de un pedido pagado.
      */
     @GetMapping("/{id}/factura")

@@ -1,6 +1,7 @@
 package com.uniquindio.backend.service;
 
 import com.uniquindio.backend.dto.ClienteResponse;
+import com.uniquindio.backend.model.EstadoPedido;
 import com.uniquindio.backend.model.Pedido;
 import com.uniquindio.backend.model.Rol;
 import com.uniquindio.backend.model.Usuario;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -22,10 +24,18 @@ public class AdminService {
     public List<ClienteResponse> listarClientes() {
         List<Usuario> clientes = usuarioRepository.findByRolOrderByFechaCreacionDesc(Rol.CLIENTE);
 
+        Set<EstadoPedido> estadosPagados = Set.of(
+                EstadoPedido.PAGADO, EstadoPedido.CONFIRMADO,
+                EstadoPedido.ENVIADO, EstadoPedido.ENTREGADO);
+
         return clientes.stream().map(usuario -> {
-            List<Pedido> pedidos = pedidoRepository.findByUsuarioIdOrderByFechaCreacionDesc(usuario.getId());
-            long totalPedidos = pedidos.size();
-            BigDecimal totalGastado = pedidos.stream()
+            List<Pedido> pedidosPagados = pedidoRepository
+                    .findByUsuarioIdOrderByFechaCreacionDesc(usuario.getId())
+                    .stream()
+                    .filter(p -> estadosPagados.contains(p.getEstado()))
+                    .toList();
+            long totalPedidos = pedidosPagados.size();
+            BigDecimal totalGastado = pedidosPagados.stream()
                     .map(Pedido::getTotal)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 

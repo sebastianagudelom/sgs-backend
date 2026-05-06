@@ -4,13 +4,18 @@ import com.uniquindio.backend.dto.*;
 import com.uniquindio.backend.model.*;
 import com.uniquindio.backend.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PedidoService {
@@ -20,10 +25,15 @@ public class PedidoService {
     private final UsuarioRepository usuarioRepository;
     private final InventarioService inventarioService;
 
-    /**
-     * Crea un pedido a partir del carrito del cliente.
-     * Valida stock, descuenta unidades y calcula totales.
-     */
+    // Orden de progresión de estados (solo estados "adelante")
+    private static final Map<EstadoPedido, Integer> ORDEN_ESTADO = Map.of(
+            EstadoPedido.PENDIENTE, 0,
+            EstadoPedido.PAGADO, 1,
+            EstadoPedido.CONFIRMADO, 2,
+            EstadoPedido.ENVIADO, 3,
+            EstadoPedido.ENTREGADO, 4
+    );
+
     @Transactional
     public PedidoResponse crearPedido(String emailUsuario, PedidoRequest request) {
         Usuario usuario = usuarioRepository.findByEmail(emailUsuario)
@@ -60,7 +70,6 @@ public class PedidoService {
             detalles.add(detalle);
             total = total.add(subtotal);
 
-            // Descontar stock
             producto.setStock(producto.getStock() - item.cantidad());
             productoRepository.save(producto);
             inventarioService.sincronizarProducto(producto);
@@ -73,10 +82,8 @@ public class PedidoService {
                 .direccionEnvio(request.direccionEnvio())
                 .build();
 
-        // Guardar primero sin detalles para obtener el ID
         pedido = pedidoRepository.save(pedido);
 
-        // Asociar cada detalle al pedido
         for (DetallePedido detalle : detalles) {
             detalle.setPedido(pedido);
         }
@@ -86,9 +93,7 @@ public class PedidoService {
         return toResponse(pedido);
     }
 
-    /**
-     * Lista los pedidos del usuario autenticado.
-     */
+    @Transactional(readOnly = true)
     public List<PedidoResponse> listarMisPedidos(String emailUsuario) {
         Usuario usuario = usuarioRepository.findByEmail(emailUsuario)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
@@ -97,17 +102,13 @@ public class PedidoService {
                 .stream().map(this::toResponse).toList();
     }
 
-    /**
-     * Lista todos los pedidos (solo admin).
-     */
+    @Transactional(readOnly = true)
     public List<PedidoResponse> listarTodos() {
         return pedidoRepository.findAllByOrderByFechaCreacionDesc()
                 .stream().map(this::toResponse).toList();
     }
 
-    /**
-     * Obtiene un pedido por ID.
-     */
+    @Transactional(readOnly = true)
     public PedidoResponse obtenerPorId(Long id) {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
@@ -115,7 +116,9 @@ public class PedidoService {
     }
 
     /**
-     * Actualiza el estado de un pedido (solo admin).
+     * Actualiza el estado de un pedido (admin).
+     * Aplica máquina de estados unidireccional: no se puede retroceder.
+     * ENTREGADO, CANCELADO y RECHAZADO son estados terminales.
      */
     @Transactional
     public PedidoResponse actualizarEstado(Long id, String nuevoEstado) {
@@ -129,23 +132,39 @@ public class PedidoService {
             throw new RuntimeException("Estado inválido: " + nuevoEstado);
         }
 
-        // Si se cancela, devolver stock
-        if (estado == EstadoPedido.CANCELADO && pedido.getEstado() != EstadoPedido.CANCELADO) {
-            for (DetallePedido detalle : pedido.getDetalles()) {
-                Producto producto = detalle.getProducto();
-                producto.setStock(producto.getStock() + detalle.getCantidad());
-                productoRepository.save(producto);
-                inventarioService.sincronizarProducto(producto);
-            }
+        validarTransicion(pedido.getEstado(), estado);
+
+        if (estado == EstadoPedido.CANCELADO) {
+            devolverStock(pedido);
         }
 
         pedido.setEstado(estado);
+        pedido.setFechaUltimoCambioEstado(LocalDateTime.now());
         return toResponse(pedidoRepository.save(pedido));
     }
 
     /**
-     * Genera la factura de un pedido pagado.
+     * Permite al cliente cancelar su propio pedido si está en PENDIENTE.
      */
+    @Transactional
+    public PedidoResponse cancelarPedidoUsuario(String emailUsuario, Long pedidoId) {
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
+
+        if (!pedido.getUsuario().getEmail().equals(emailUsuario)) {
+            throw new RuntimeException("No tienes permiso para cancelar este pedido");
+        }
+        if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
+            throw new RuntimeException("Solo puedes cancelar pedidos en estado PENDIENTE");
+        }
+
+        devolverStock(pedido);
+        pedido.setEstado(EstadoPedido.CANCELADO);
+        pedido.setFechaUltimoCambioEstado(LocalDateTime.now());
+        return toResponse(pedidoRepository.save(pedido));
+    }
+
+    @Transactional(readOnly = true)
     public FacturaResponse obtenerFactura(String emailUsuario, Long pedidoId) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
@@ -188,6 +207,94 @@ public class PedidoService {
                 pedido.getFechaActualizacion(),
                 pedido.getFechaCreacion()
         );
+    }
+
+    // ── Tareas programadas ──────────────────────────────────────────────────────
+
+    /**
+     * Cancela automáticamente pedidos PENDIENTE que llevan más de 5 minutos sin pagar.
+     * Ejecuta cada minuto.
+     */
+    @Scheduled(fixedDelay = 60_000)
+    @Transactional
+    public void cancelarPedidosPendientesVencidos() {
+        LocalDateTime limite = LocalDateTime.now().minusMinutes(5);
+        List<Pedido> vencidos = pedidoRepository.findByEstadoAndFechaCreacionBefore(
+                EstadoPedido.PENDIENTE, limite);
+        for (Pedido pedido : vencidos) {
+            devolverStock(pedido);
+            pedido.setEstado(EstadoPedido.CANCELADO);
+            pedido.setFechaUltimoCambioEstado(LocalDateTime.now());
+            pedidoRepository.save(pedido);
+            log.info("Pedido {} cancelado automáticamente por vencimiento (>5 min sin pago)", pedido.getId());
+        }
+    }
+
+    /**
+     * Avanza automáticamente el estado de los pedidos pagados:
+     * PAGADO → CONFIRMADO → ENVIADO → ENTREGADO (1 minuto entre cada cambio).
+     * Ejecuta cada minuto.
+     */
+    @Scheduled(fixedDelay = 60_000)
+    @Transactional
+    public void avanzarEstadosPedidosPagados() {
+        LocalDateTime limite = LocalDateTime.now().minusMinutes(1);
+
+        avanzarEstados(
+                pedidoRepository.findByEstadoAndFechaUltimoCambioEstadoBefore(EstadoPedido.PAGADO, limite),
+                EstadoPedido.CONFIRMADO);
+
+        avanzarEstados(
+                pedidoRepository.findByEstadoAndFechaUltimoCambioEstadoBefore(EstadoPedido.CONFIRMADO, limite),
+                EstadoPedido.ENVIADO);
+
+        avanzarEstados(
+                pedidoRepository.findByEstadoAndFechaUltimoCambioEstadoBefore(EstadoPedido.ENVIADO, limite),
+                EstadoPedido.ENTREGADO);
+    }
+
+    // ── Helpers privados ────────────────────────────────────────────────────────
+
+    private void avanzarEstados(List<Pedido> pedidos, EstadoPedido nuevoEstado) {
+        for (Pedido pedido : pedidos) {
+            pedido.setEstado(nuevoEstado);
+            pedido.setFechaUltimoCambioEstado(LocalDateTime.now());
+            pedidoRepository.save(pedido);
+            log.info("Pedido {} avanzado automáticamente a {}", pedido.getId(), nuevoEstado);
+        }
+    }
+
+    private void devolverStock(Pedido pedido) {
+        if (pedido.getDetalles() == null) return;
+        for (DetallePedido detalle : pedido.getDetalles()) {
+            Producto producto = detalle.getProducto();
+            producto.setStock(producto.getStock() + detalle.getCantidad());
+            productoRepository.save(producto);
+            inventarioService.sincronizarProducto(producto);
+        }
+    }
+
+    /**
+     * Valida que la transición de estado sea válida (solo hacia adelante).
+     * Estados terminales: ENTREGADO, CANCELADO, RECHAZADO.
+     */
+    private void validarTransicion(EstadoPedido actual, EstadoPedido nuevo) {
+        if (actual == EstadoPedido.ENTREGADO) {
+            throw new RuntimeException("El pedido ya fue entregado y no puede modificarse");
+        }
+        if (actual == EstadoPedido.CANCELADO || actual == EstadoPedido.RECHAZADO) {
+            throw new RuntimeException("El pedido en estado " + actual + " no puede modificarse");
+        }
+        // CANCELADO siempre está permitido desde cualquier estado no terminal
+        if (nuevo == EstadoPedido.CANCELADO) return;
+
+        Integer ordenActual = ORDEN_ESTADO.get(actual);
+        Integer ordenNuevo = ORDEN_ESTADO.get(nuevo);
+        if (ordenActual != null && ordenNuevo != null && ordenNuevo <= ordenActual) {
+            throw new RuntimeException(
+                    "No se puede cambiar el estado de " + actual + " a " + nuevo +
+                    ". Solo se permite avanzar el estado.");
+        }
     }
 
     private PedidoResponse toResponse(Pedido pedido) {
